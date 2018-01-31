@@ -9,12 +9,13 @@ import {
   Platform,
   StyleSheet,
   Text,
-  View
+  View,
+  Button
 } from 'react-native';
 
-import MapView from 'react-native-maps';
 
 import FetchLocation from './components/FetchLocation';
+import UsersMap from './components/UsersMap';
 
 const instructions = Platform.select({
   ios: 'Press Cmd+R to reload,\n' +
@@ -24,27 +25,61 @@ const instructions = Platform.select({
 });
 
 export default class App extends Component<{}> {
-
+  state = {
+    userLocation: null,
+    usersPlaces: [],
+  }
   getUserLocationHandler = () => {
     navigator.geolocation.getCurrentPosition(position => {
       console.log(position);
+      this.setState({
+        userLocation: {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }
+      });
+      fetch('http://reactive-app-1517300228879.firebaseio.com/places.json', {
+          method:'POST',
+          body: JSON.stringify({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude, 
+          }),
+      })
+        .then(res => console.log(res))
+        .catch(err => console.log(err));
+    
     }, error => { console.log(error) });
   };
+
+  getUsersLocations = () => {
+    fetch('http://reactive-app-1517300228879.firebaseio.com/places.json')
+      .then(res => res.json()).then(parsedRes => {
+        console.log(parsedRes);
+        const placesArray = [];
+        for (const key in parsedRes) {
+          placesArray.push({
+            latitude: parsedRes[key].latitude,
+            longitude: parsedRes[key].longitude,
+            id: key
+          })
+        }
+        this.setState({
+          usersPlaces: placesArray
+        });
+        console.log(this.state.usersPlaces);
+      })
+    .catch(err => console.log(err));
+  }
   
   render() {
     return (
       <View style={styles.container}>
-
-        <MapView
-          region={{
-            latitude: 37.78825,
-            longitude: -122.4324,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-          style={styles.map}
-        />
-
+        <View>
+          <Button title="Get Users Places" onPress={this.getUsersLocations} />
+        </View>
+        <UsersMap userLocation={this.state.userLocation} usersPlaces={this.state.usersPlaces}/>  
         <FetchLocation onGetLocation={this.getUserLocationHandler}/>
       </View>
     );
@@ -57,19 +92,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FF0000',
-  },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-  },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
-  },
-  map: {
-    width: '90%',
-    height: '70%',
   },
 });
